@@ -1,4 +1,3 @@
-
 package com.strategyengine.strategyengine.engine.dsl;
 
 import com.strategyengine.strategyengine.engine.StrategyExecutor;
@@ -8,7 +7,6 @@ import com.strategyengine.strategyengine.parser.ScriptParserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.*;
 
 @Component("dslStrategyExecutor")
@@ -26,10 +24,13 @@ public class DSLStrategyExecutor implements StrategyExecutor {
 
         Map<Integer, Map<String, Double>> indicatorCache = new HashMap<>();
         List<Trade> trades = new ArrayList<>();
+
         boolean holding = false;
         double initialCapital = 500000;
         double capital = initialCapital;
         double buyPrice = 0;
+        int quantity = 0;
+        double openingBalance = initialCapital;
 
         for (int i = 0; i < candles.size(); i++) {
             Candle candle = candles.get(i);
@@ -48,31 +49,75 @@ public class DSLStrategyExecutor implements StrategyExecutor {
 
                 if (allMatched) {
                     if ("BUY".equalsIgnoreCase(rule.getAction()) && !holding) {
+                        buyPrice = candle.getClose();
+                        quantity = (int) (capital / buyPrice);
+
+                        if (quantity <= 0) {
+                            System.out.println("Skipped BUY on " + candle.getDate() + " — capital: " + capital + ", price: " + buyPrice);
+                            continue; // skip if not enough capital
+                        }
+
                         trades.add(Trade.builder()
                                 .date(candle.getDate())
-                                .price(candle.getClose())
+                                .price(buyPrice)
                                 .action("BUY")
                                 .strategy(strategy)
+                                .symbol(strategy.getSymbol())
+                                .quantity(quantity)
+                                .totalCostPrice(quantity * buyPrice)
+                                .openingBalance(openingBalance)
+                                .closingBalance(capital)
+                                .nav(quantity * buyPrice)
+                                .realizedProfit(0.0)
                                 .build());
-                        buyPrice = candle.getClose();
+
                         holding = true;
                     } else if ("SELL".equalsIgnoreCase(rule.getAction()) && holding) {
+                        double sellPrice = candle.getClose();
+                        double profit = quantity * (sellPrice - buyPrice);
+                        capital = quantity * sellPrice;
+
                         trades.add(Trade.builder()
                                 .date(candle.getDate())
-                                .price(candle.getClose())
+                                .price(sellPrice)
                                 .action("SELL")
                                 .strategy(strategy)
+                                .symbol(strategy.getSymbol())
+                                .quantity(quantity)
+                                .totalCostPrice(quantity * buyPrice)
+                                .openingBalance(openingBalance)
+                                .closingBalance(capital)
+                                .nav(quantity * sellPrice)
+                                .realizedProfit(profit)
                                 .build());
-                        capital = capital * (candle.getClose() / buyPrice);
+
+                        openingBalance = capital;
                         holding = false;
                     }
                 }
             }
         }
 
+        // Sell at the end if still holding
         if (holding) {
             Candle lastCandle = candles.get(candles.size() - 1);
-            capital = capital * (lastCandle.getClose() / buyPrice);
+            double sellPrice = lastCandle.getClose();
+            double profit = quantity * (sellPrice - buyPrice);
+            capital = quantity * sellPrice;
+
+            trades.add(Trade.builder()
+                    .date(lastCandle.getDate())
+                    .price(sellPrice)
+                    .action("SELL")
+                    .strategy(strategy)
+                    .symbol(strategy.getSymbol())
+                    .quantity(quantity)
+                    .totalCostPrice(quantity * buyPrice)
+                    .openingBalance(openingBalance)
+                    .closingBalance(capital)
+                    .nav(quantity * sellPrice)
+                    .realizedProfit(profit)
+                    .build());
         }
 
         return BacktestResult.builder()

@@ -48,7 +48,7 @@ public class BacktestController {
                 .totalTrades(result.getTotalTrades())
                 .trades(result.getTrades().stream()
                         .map(t -> TradeDTO.builder()
-                                .date(t.getDate())
+                                .date(String.valueOf(t.getDate()))
                                 .price(t.getPrice())
                                 .action(t.getAction())
                                 .build())
