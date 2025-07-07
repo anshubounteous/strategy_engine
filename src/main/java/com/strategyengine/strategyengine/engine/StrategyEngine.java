@@ -17,6 +17,7 @@ public class StrategyEngine {
     private Map<String, StrategyExecutor> strategyExecutors;
 
     public BacktestResult run(Strategy strategy, List<Candle> candles) {
+        System.out.println(strategy);
         StrategyExecutor executor;
 
         // Choose executor based on strategyName

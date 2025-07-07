@@ -21,7 +21,7 @@ public class DSLStrategyExecutor implements StrategyExecutor {
     @Override
     public BacktestResult execute(List<Candle> candles, Strategy strategy) {
         List<CompositeRule> rules = parser.parse(strategy.getScript());
-
+        System.out.println(rules);
         Map<Integer, Map<String, Double>> indicatorCache = new HashMap<>();
         List<Trade> trades = new ArrayList<>();
 
@@ -52,7 +52,9 @@ public class DSLStrategyExecutor implements StrategyExecutor {
                         buyPrice = candle.getClose();
                         quantity = (int) (capital / buyPrice);
 
-                        if (quantity <= 0) {
+                        System.out.println(buyPrice+" "+quantity);
+
+                        if (quantity < 1) {
                             System.out.println("Skipped BUY on " + candle.getDate() + " — capital: " + capital + ", price: " + buyPrice);
                             continue; // skip if not enough capital
                         }
@@ -131,15 +133,20 @@ public class DSLStrategyExecutor implements StrategyExecutor {
 
     private double getValue(List<Candle> candles, String type, Integer arg, int index,
                             Map<Integer, Map<String, Double>> cache) {
-
         cache.putIfAbsent(index, new HashMap<>());
+
+        if(!type.equals("SMA") && !type.equals("RSI") && !type.equals("VALUE") && !type.equals("CLOSE")){
+            arg = Integer.parseInt(type);
+            type="VALUE";
+        }
+        Integer finalArg=arg;
 
         if ("SMA".equalsIgnoreCase(type)) {
             return cache.get(index).computeIfAbsent("SMA" + arg,
-                    key -> indicatorService.calculateSMA(candles, arg).getOrDefault(index, 0.0));
+                    key -> indicatorService.calculateSMA(candles, finalArg).getOrDefault(index, 0.0));
         } else if ("RSI".equalsIgnoreCase(type)) {
             return cache.get(index).computeIfAbsent("RSI" + arg,
-                    key -> indicatorService.calculateRSI(candles, arg).getOrDefault(index, 0.0));
+                    key -> indicatorService.calculateRSI(candles, finalArg).getOrDefault(index, 0.0));
         } else if ("VALUE".equalsIgnoreCase(type)) {
             return arg;
         } else if ("CLOSE".equalsIgnoreCase(type)) {
