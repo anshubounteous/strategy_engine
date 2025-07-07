@@ -10,7 +10,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class TradeDTO {
-    private String date;
+    private LocalDate date;
     private String action; // BUY or SELL
     private double price;
 
