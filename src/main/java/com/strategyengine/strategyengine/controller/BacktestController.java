@@ -2,6 +2,7 @@ package com.strategyengine.strategyengine.controller;
 
 
 import com.strategyengine.strategyengine.dto.BacktestResultDTO;
+import com.strategyengine.strategyengine.dto.CandleDataToShowInGraphDTO;
 import com.strategyengine.strategyengine.dto.StrategyRequest;
 import com.strategyengine.strategyengine.dto.TradeDTO;
 import com.strategyengine.strategyengine.engine.StrategyEngine;
@@ -9,6 +10,7 @@ import com.strategyengine.strategyengine.model.BacktestResult;
 import com.strategyengine.strategyengine.model.Candle;
 import com.strategyengine.strategyengine.model.Strategy;
 import com.strategyengine.strategyengine.repository.CandleRepository;
+import com.strategyengine.strategyengine.service.CandleGraphService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +24,7 @@ public class BacktestController {
 
     private final CandleRepository candleRepository;
     private final StrategyEngine strategyEngine;
+    private final CandleGraphService candleGraphService;
 
     @PostMapping
     public BacktestResultDTO runBacktest(@RequestBody StrategyRequest request) {
@@ -52,5 +55,11 @@ public class BacktestController {
                         .collect(Collectors.toList()))
                 .build();
     }
+
+    @PostMapping ("/candles")
+    public CandleDataToShowInGraphDTO candleData(@RequestBody StrategyRequest request) {
+        return candleGraphService.getCandleDataForChart(request);
+    }
+
 }
 
