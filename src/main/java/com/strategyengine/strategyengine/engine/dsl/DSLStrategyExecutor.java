@@ -50,21 +50,25 @@ public class DSLStrategyExecutor implements StrategyExecutor {
                 if (allMatched) {
                     if ("BUY".equalsIgnoreCase(rule.getAction()) && !holding) {
                         buyPrice = candle.getClose();
+                        // Set opening balance BEFORE buying
+                        openingBalance = capital;
                         quantity = (int) (capital / buyPrice);
 
                         if (quantity <= 0) {
                             System.out.println("Skipped BUY on " + candle.getDate() + " — capital: " + capital + ", price: " + buyPrice);
-                            continue; // skip if not enough capital
+                            continue;
                         }
+
+                        double totalCost = quantity * buyPrice;
+                        capital -= totalCost;
 
                         trades.add(Trade.builder()
                                 .date(candle.getDate())
                                 .price(buyPrice)
                                 .action("BUY")
-                                .strategy(strategy)
                                 .symbol(strategy.getSymbol())
                                 .quantity(quantity)
-                                .totalCostPrice(quantity * buyPrice)
+                                .totalCostPrice(totalCost)
                                 .openingBalance(openingBalance)
                                 .closingBalance(capital)
                                 .nav(quantity * buyPrice)
@@ -72,16 +76,19 @@ public class DSLStrategyExecutor implements StrategyExecutor {
                                 .build());
 
                         holding = true;
-                    } else if ("SELL".equalsIgnoreCase(rule.getAction()) && holding) {
+                } else if ("SELL".equalsIgnoreCase(rule.getAction()) && holding) {
                         double sellPrice = candle.getClose();
-                        double profit = quantity * (sellPrice - buyPrice);
-                        capital = quantity * sellPrice;
+
+                        openingBalance = capital;
+
+                        double proceeds = quantity * sellPrice;
+                        double profit = proceeds - (quantity * buyPrice);
+                        capital += proceeds;
 
                         trades.add(Trade.builder()
                                 .date(candle.getDate())
                                 .price(sellPrice)
                                 .action("SELL")
-                                .strategy(strategy)
                                 .symbol(strategy.getSymbol())
                                 .quantity(quantity)
                                 .totalCostPrice(quantity * buyPrice)
@@ -91,7 +98,6 @@ public class DSLStrategyExecutor implements StrategyExecutor {
                                 .realizedProfit(profit)
                                 .build());
 
-                        openingBalance = capital;
                         holding = false;
                     }
                 }
@@ -102,14 +108,17 @@ public class DSLStrategyExecutor implements StrategyExecutor {
         if (holding) {
             Candle lastCandle = candles.get(candles.size() - 1);
             double sellPrice = lastCandle.getClose();
-            double profit = quantity * (sellPrice - buyPrice);
-            capital = quantity * sellPrice;
+
+            openingBalance = capital;
+
+            double proceeds = quantity * sellPrice;
+            double profit = proceeds - (quantity * buyPrice);
+            capital += proceeds;
 
             trades.add(Trade.builder()
                     .date(lastCandle.getDate())
                     .price(sellPrice)
                     .action("SELL")
-                    .strategy(strategy)
                     .symbol(strategy.getSymbol())
                     .quantity(quantity)
                     .totalCostPrice(quantity * buyPrice)

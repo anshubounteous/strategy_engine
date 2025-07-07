@@ -51,8 +51,16 @@ public class BacktestController {
                                 .date(String.valueOf(t.getDate()))
                                 .price(t.getPrice())
                                 .action(t.getAction())
+                                .symbol(t.getSymbol())
+                                .quantity(t.getQuantity())
+                                .totalCostPrice(t.getTotalCostPrice())
+                                .openingBalance(t.getOpeningBalance())
+                                .closingBalance(t.getClosingBalance())
+                                .nav(t.getNav())
+                                .realizedProfit(t.getRealizedProfit())
                                 .build())
                         .collect(Collectors.toList()))
+
                 .build();
     }
 
