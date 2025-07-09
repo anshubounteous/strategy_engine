@@ -14,7 +14,10 @@ import com.strategyengine.strategyengine.service.CandleGraphService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -28,19 +31,138 @@ public class BacktestController {
 
     @PostMapping
     public BacktestResultDTO runBacktest(@RequestBody StrategyRequest request) {
-        List<Candle> candles = candleRepository
-                .findBySymbolAndDateBetweenOrderByDateAsc(
-                        request.getSymbol(), request.getStartDate(), request.getEndDate());
 
+        List<String> symbolListToBeUse=new ArrayList<>();
+        List<String>nifty50=List.of(
+                "HDFCBANK.NS",   // ~13.2%
+                "ICICIBANK.NS",  // ~9.1%
+                "RELIANCE.NS",   // ~8.6%
+                "TCS.NS",        // ~5.0%
+                "BHARTIARTL.NS", // ~4.4%
+                "INFY.NS",
+                "BAJFINANCE.NS",
+                "HINDUNILVR.NS",
+                "ITC.NS",
+                "LT.NS",
+                "HCLTECH.NS",
+                "KOTAKBANK.NS",
+                "ULTRACEMCO.NS",
+                "AXISBANK.NS",
+                "TITAN.NS",
+                "NTPC.NS",
+                "ASIANPAINT.NS",
+                "NESTLEIND.NS",
+                "SBIN.NS",
+                "SUNPHARMA.NS",
+                "MARUTI.NS",
+                "M&M.NS",
+                "JSWSTEEL.NS",
+                "TATAMOTORS.NS",
+                "TATASTEEL.NS",
+                "TECHM.NS",
+                "WIPRO.NS",
+                "ADANIENT.NS",
+                "ADANIPORTS.NS",
+                "COALINDIA.NS",
+                "POWERGRID.NS",
+                "DRREDDY.NS",
+                "CIPLA.NS",
+                "EICHERMOT.NS",
+                "HEROMOTOCO.NS",
+                "HINDALCO.NS",
+                "INDUSINDBK.NS",
+                "SHREECEM.NS",
+                "BPCL.NS",
+                "ONGC.NS",
+                "GRASIM.NS",
+                "IOC.NS",
+                "HDFCLIFE.NS",
+                "SBILIFE.NS",
+                "BAJAJ-AUTO.NS",
+                "BAJAJFINSV.NS",     // 🔁 added
+                "BRITANNIA.NS",      // 🔁 added
+                "HDFC.NS",           // 🔁 added
+                "UPL.NS");
+
+        List<String>niftyNext50=List.of( "BOSCHLTD.NS",
+                "ABB.NS",
+                "APOLLOHOSP.NS",
+                "AMBUJACEM.NS",
+                "ADANIGREEN.NS",
+                "BIOCON.NS",
+                "BEL.NS",
+                "BANKBARODA.NS",
+                "BANDHANBNK.NS",
+                "CANBK.NS",
+                "CHOLAFIN.NS",
+                "COLPAL.NS",
+                "DABUR.NS",
+                "DLF.NS",
+                "GODREJCP.NS",
+                "GAIL.NS",
+                "HAVELLS.NS",
+                "ICICIPRULI.NS",
+                "INDIGO.NS",
+                "LTIM.NS",
+                "LTTS.NS",
+                "L&TFH.NS",
+                "LICI.NS",
+                "MCDOWELL-N.NS",
+                "MFSL.NS",
+                "MUTHOOTFIN.NS",
+                "NAUKRI.NS",
+                "NHPC.NS",
+                "NMDC.NS",
+                "OFSS.NS",
+                "PAGEIND.NS",
+                "PETRONET.NS",
+                "PIDILITIND.NS",
+                "PIIND.NS",
+                "PFC.NS",
+                "RECLTD.NS",
+                "SAIL.NS",
+                "SIEMENS.NS",
+                "SRF.NS",
+                "TORNTPHARM.NS",
+                "TRENT.NS",
+                "TVSMOTOR.NS",
+                "UBL.NS",
+                "VOLTAS.NS",
+                "ZYDUSLIFE.NS",
+                "AUROPHARMA.NS",
+                "ALKEM.NS",
+                "INDUSTOWER.NS",
+                "IOCL.NS",
+                "JINDALSTEL.NS");
+
+        List<String>symbolL=request.getSymbolList();
+        for(String k : symbolL){
+            if(k.equals("NIFTY 50")) {
+                symbolListToBeUse.addAll(nifty50);
+            }else if(k.equals("NIFTY NEXT 50")){
+                symbolListToBeUse.addAll(niftyNext50);
+            }else if(k.equals("NIFTY NEXT 50")){
+                symbolListToBeUse.addAll(nifty50);
+                symbolListToBeUse.addAll(niftyNext50);
+            }else{
+                symbolListToBeUse.add(k);
+            }
+        }
+        HashMap<String,List<Candle>> CandleMap=new HashMap<>();
+        for(String s:symbolListToBeUse){
+            List<Candle> candles = candleRepository
+                    .findBySymbolAndDateBetweenOrderByDateAsc(
+                            s, request.getStartDate(), request.getEndDate());
+            CandleMap.put(s,candles);
+        }
         Strategy strategy = Strategy.builder()
                 .name(request.getStrategyName())
-                .symbol(request.getSymbol())
+                .symbolList(symbolListToBeUse)
                 .script(request.getStrategyScript())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .build();
-
-        BacktestResult result = strategyEngine.run(strategy, candles);
+        BacktestResult result = strategyEngine.run(strategy, CandleMap);
 
         return BacktestResultDTO.builder()
                 .initialEquity(result.getInitialEquity())
@@ -65,7 +187,7 @@ public class BacktestController {
     }
 
     @PostMapping ("/candles")
-    public CandleDataToShowInGraphDTO candleData(@RequestBody StrategyRequest request) {
+    public Map<String, List<CandleDataToShowInGraphDTO.CandlePoint>> candleData(@RequestBody StrategyRequest request) {
         return candleGraphService.getCandleDataForChart(request);
     }
 

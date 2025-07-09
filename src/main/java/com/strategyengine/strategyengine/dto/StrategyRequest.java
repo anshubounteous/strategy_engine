@@ -4,6 +4,8 @@ package com.strategyengine.strategyengine.dto;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -12,8 +14,9 @@ import java.time.LocalDate;
 public class StrategyRequest {
     private String strategyName;       // Optional: predefined strategy
     private String strategyScript;     // Optional: DSL-based script
-    private String symbol;
+    private List<String> symbolList;
     private LocalDate startDate;
     private LocalDate endDate;
-    private double initialCapital;     // Optional, default = 10000
+    private double initialCapital;
+    private String symbol;// Optional, default = 10000
 }

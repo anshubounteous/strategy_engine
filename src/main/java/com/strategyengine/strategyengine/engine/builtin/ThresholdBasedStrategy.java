@@ -1,6 +1,5 @@
 package com.strategyengine.strategyengine.engine.builtin;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strategyengine.strategyengine.engine.StrategyExecutor;
 import com.strategyengine.strategyengine.model.*;
@@ -17,37 +16,98 @@ public class ThresholdBasedStrategy implements StrategyExecutor {
     }
 
     @Override
-    public BacktestResult execute(List<Candle> candles, Strategy strategy) {
+    public BacktestResult execute(HashMap<String, List<Candle>> candleMap, Strategy strategy) {
         List<Trade> trades = new ArrayList<>();
-        boolean holding = false;
-        double capital = 10000;
-        double buyPrice = 0;
+        double initialCapital = 10000;
+        double capital = initialCapital;
 
         Params params = new Params();
         try {
             params = new ObjectMapper().readValue(strategy.getParamsJson(), Params.class);
         } catch (Exception ignored) {}
 
-        for (Candle candle : candles) {
-            if (!holding && candle.getClose() < params.buyBelow) {
-                trades.add(Trade.builder().date(candle.getDate()).price(candle.getClose()).action("BUY").strategy(strategy).build());
-                buyPrice = candle.getClose();
-                holding = true;
-            } else if (holding && candle.getClose() > params.sellAbove) {
-                trades.add(Trade.builder().date(candle.getDate()).price(candle.getClose()).action("SELL").strategy(strategy).build());
-                capital = capital * (candle.getClose() / buyPrice);
-                holding = false;
-            }
-        }
+        for (Map.Entry<String, List<Candle>> entry : candleMap.entrySet()) {
+            String symbol = entry.getKey();
+            List<Candle> candles = entry.getValue();
 
-        if (holding) {
-            Candle last = candles.get(candles.size() - 1);
-            capital = capital * (last.getClose() / buyPrice);
+            boolean holding = false;
+            double buyPrice = 0;
+            int quantity = 0;
+
+            for (Candle candle : candles) {
+                if (!holding && candle.getClose() < params.buyBelow) {
+                    buyPrice = candle.getClose();
+                    quantity = (int) (capital / buyPrice);
+                    double cost = quantity * buyPrice;
+                    capital -= cost;
+
+                    trades.add(Trade.builder()
+                            .date(candle.getDate())
+                            .symbol(symbol)
+                            .action("BUY")
+                            .price(buyPrice)
+                            .quantity(quantity)
+                            .totalCostPrice(cost)
+                            .openingBalance(capital + cost)
+                            .closingBalance(capital)
+                            .nav(quantity * buyPrice)
+                            .realizedProfit(0.0)
+                            .strategy(strategy)
+                            .build());
+
+                    holding = true;
+                } else if (holding && candle.getClose() > params.sellAbove) {
+                    double sellPrice = candle.getClose();
+                    double proceeds = quantity * sellPrice;
+                    double profit = proceeds - (quantity * buyPrice);
+                    double openingBalance = capital;
+                    capital += proceeds;
+
+                    trades.add(Trade.builder()
+                            .date(candle.getDate())
+                            .symbol(symbol)
+                            .action("SELL")
+                            .price(sellPrice)
+                            .quantity(quantity)
+                            .totalCostPrice(quantity * buyPrice)
+                            .openingBalance(openingBalance)
+                            .closingBalance(capital)
+                            .nav(quantity * sellPrice)
+                            .realizedProfit(profit)
+                            .strategy(strategy)
+                            .build());
+
+                    holding = false;
+                }
+            }
+
+            if (holding) {
+                Candle last = candles.get(candles.size() - 1);
+                double sellPrice = last.getClose();
+                double proceeds = quantity * sellPrice;
+                double profit = proceeds - (quantity * buyPrice);
+                double openingBalance = capital;
+                capital += proceeds;
+
+                trades.add(Trade.builder()
+                        .date(last.getDate())
+                        .symbol(symbol)
+                        .action("SELL")
+                        .price(sellPrice)
+                        .quantity(quantity)
+                        .totalCostPrice(quantity * buyPrice)
+                        .openingBalance(openingBalance)
+                        .closingBalance(capital)
+                        .nav(quantity * sellPrice)
+                        .realizedProfit(profit)
+                        .strategy(strategy)
+                        .build());
+            }
         }
 
         return BacktestResult.builder()
                 .strategy(strategy)
-                .initialEquity(10000)
+                .initialEquity(initialCapital)
                 .finalEquity(capital)
                 .totalTrades(trades.size())
                 .trades(trades)
