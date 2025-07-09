@@ -147,6 +147,7 @@ public class YahooFinanceService {
                 symbol, period1, period2
         );
 
+        System.out.println(url);
         try {
             String rawJson = webClient.get()
                     .uri(url)

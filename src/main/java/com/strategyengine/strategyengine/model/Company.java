@@ -1,13 +1,12 @@
 package com.strategyengine.strategyengine.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 
 @Entity
 @Data
@@ -19,8 +18,14 @@ public class Company {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String symbol;       // e.g. INFY.NS
-    private String name;         // e.g. Infosys
+    private String symbol;       // e.g. RELIANCE.NS
+    private String name;         // e.g. Reliance Industries
     private String indexName;    // e.g. NIFTY 50
+
+    @Column(precision = 30, scale = 4)
+    private BigDecimal totalCapital; // Market Cap
+
+    private Double riskFactor;   // Beta * Market Risk Premium
 }
+
 
